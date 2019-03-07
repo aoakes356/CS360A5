@@ -81,6 +81,7 @@ int pipeWrite(int fileDescriptor, char* buffer){
 int main(){
     char buffer[2048] = "";
     char buffer2[2048] = "";
+    char* line;
     struct sigaction s1;
     struct sigaction s2;
     struct sigaction s3;
@@ -152,12 +153,13 @@ int main(){
 
         sigaction(SIGINT,&s2,NULL);
         sigaction(SIGALRM,&s1,NULL);
-        int len;
+        int len, c;
         while(1){
             pause();
             printf("New string: ");
             if(fgets(buffer,512,stdin) != NULL){
-                while(getchar() != '\n');
+                //fflush(stdin); // Can't use on input stream....
+                //while(getchar() != '\n'); // Loops indefinitely or something?
                 len = strlen(buffer);
                 buffer[len-1] = '\n';
                 printf("\n");
