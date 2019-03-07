@@ -12,6 +12,8 @@
 int fd[2];
 int pflag = 0;
 int closeFlag = 1;
+int written = 0;
+int alrm = 0;
 
 int errorHandler(const char* message, int err){
     fprintf(stderr,"%s: %s\n",message, strerror(err));
@@ -51,12 +53,14 @@ void sigIntHandlerTwo(int signal){
 }
 
 void sigAlarmHandler(int signal){
+    alrm = 1;
     struct sigaction s1;
     s1.sa_handler = sigAlarmHandler;
     sigaction(SIGALRM,&s1,NULL);
 }
 
 void sigUserHandler(int signal){
+    written = 1;
     struct sigaction s3;
     s3.sa_handler = sigUserHandler;
     sigaction(SIGFPE,&s3,NULL);
@@ -84,30 +88,31 @@ int main(){
     struct sigaction s1;
     struct sigaction s2;
     struct sigaction s3;
-    struct sigaction s5;
     // fd[0] -> read
     // fd[1] -> write
     s1.sa_handler = sigAlarmHandler;
     s2.sa_handler = sigIntHandlerTwo;
     s3.sa_handler = sigUserHandler;
-    s5.sa_handler = sigIntHandlerTwo;
     if(pipe(fd) < 0){
         return 1;
     }
     int res = fork();
     if(res < 0) return errorHandler("Failed to create child process",errno);
     int waitTime = 5;
-    if(!res){
+    if(!res){   // Child process
         char* word;
         int ex = 0;
         sigaction(SIGALRM,&s1,NULL);
-        sigaction(SIGINT,&s5,NULL);
+        sigaction(SIGINT,&s2,NULL);
         sigaction(SIGFPE,&s3,NULL);
         if(close(fd[1]) < 0) return errorHandler("Failed to close file descriptor",errno);
         while(1){
             if(pflag){
                 alarm(0);
-                pause();
+                while(!written){
+                    pause();
+                }
+                written = 0;
                 if(!pflag){
                     printf("\n");
                 }
@@ -152,18 +157,30 @@ int main(){
         if(close(fd[0]) < 0) return errorHandler("Failed to close file descriptor",errno);
 
         sigaction(SIGINT,&s2,NULL);
-        sigaction(SIGALRM,&s1,NULL);
+        //sigaction(SIGALRM,&s1,NULL);
         char* line = NULL;
-        int len;
+        int len, res1;
         size_t n = 0;
         while(1){
             line = NULL;
-            pause();
+            n = 0;
+            while(!pflag){
+                pause();
+            }
+            pflag = 0;
             printf("New string: ");
-            if((getline(&line,&n,stdin)) != 0){
+            fflush(stdout);
+            if((res1 = (getline(&line,&n,stdin))) >= 0){
+                if(pflag){
+                    printf("\n");
+                    pflag = 0;
+                    continue;
+                }
                 //fflush(stdin); // Can't use on input stream....
                 //while(getchar() != '\n'); // Loops indefinitely or something?
                 strncpy(buffer,line,512);
+                free(line);
+                n = 0;
                 len = strlen(buffer);
                 buffer[len-1] = '\n';
                 printf("\n");
@@ -179,6 +196,9 @@ int main(){
                 else if(!strcmp("exit\n", word)) {
                     break;
                 }
+            }else{
+                errorHandler("Failed to read a line",errno);
+                pflag = 0;
             }
         }
 
