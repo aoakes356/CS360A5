@@ -81,7 +81,6 @@ int pipeWrite(int fileDescriptor, char* buffer){
 int main(){
     char buffer[2048] = "";
     char buffer2[2048] = "";
-    char* line;
     struct sigaction s1;
     struct sigaction s2;
     struct sigaction s3;
@@ -114,7 +113,7 @@ int main(){
                 }
                 while(pflag){
                     pflag = 0;
-                    pipeReee(fd[0],buffer,512);
+                    pipeReee(fd[0],buffer,513);
                     strncpy(buffer2,buffer,512);
                     // Used %[\001-\377] because %s wouldn't get the whole string >:I
                     if(sscanf(buffer,"%d",&waitTime) == 1){
@@ -143,6 +142,7 @@ int main(){
             pause();
             if(strlen(buffer) != 0 && !pflag){
                 printf("%s",word);
+                fflush(stdout);
             }
         }
         if(close(fd[0]) < 0) return errorHandler("Failed to close file descriptor",errno);
@@ -153,13 +153,17 @@ int main(){
 
         sigaction(SIGINT,&s2,NULL);
         sigaction(SIGALRM,&s1,NULL);
-        int len, c;
+        char* line = NULL;
+        int len;
+        size_t n = 0;
         while(1){
+            line = NULL;
             pause();
             printf("New string: ");
-            if(fgets(buffer,512,stdin) != NULL){
+            if((getline(&line,&n,stdin)) != 0){
                 //fflush(stdin); // Can't use on input stream....
                 //while(getchar() != '\n'); // Loops indefinitely or something?
+                strncpy(buffer,line,512);
                 len = strlen(buffer);
                 buffer[len-1] = '\n';
                 printf("\n");
