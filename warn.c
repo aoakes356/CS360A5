@@ -165,8 +165,10 @@ int main(){
             line = NULL;
             n = 0;
             while(!pflag){
+                printf("Stopped at pause\n");
                 pause();
             }
+            printf("Exiting Pause\n");
             pflag = 0;
             printf("New string: ");
             fflush(stdout);
